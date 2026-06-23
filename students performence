@@ -1,0 +1,166 @@
+# Import Required Libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from google.colab import files
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+plt.style.use('ggplot')
+uploaded = files.upload()
+
+df = pd.read_csv(next(iter(uploaded)))
+print("Dataset Shape:", df.shape)
+print("\nFirst 5 Records")
+display(df.head())
+
+print("\nDataset Info")
+df.info()
+
+print("\nMissing Values")
+print(df.isnull().sum())
+# Fill missing numeric values
+numeric_cols = df.select_dtypes(include=np.number).columns
+
+for col in numeric_cols:
+    df[col].fillna(df[col].mean(), inplace=True)
+
+# Fill missing categorical values
+categorical_cols = df.select_dtypes(include='object').columns
+
+for col in categorical_cols:
+    df[col].fillna(df[col].mode()[0], inplace=True)
+
+print("Missing Values After Cleaning")
+print(df.isnull().sum())
+df['Total_Score'] = (
+    df['Assignment_Score'] +
+    df['Midterm_Score'] +
+    df['Final_Score']
+)
+
+df['Percentage'] = df['Total_Score'] / 3
+def grade(x):
+    if x >= 90:
+        return 'A'
+    elif x >= 80:
+        return 'B'
+    elif x >= 70:
+        return 'C'
+    elif x >= 60:
+        return 'D'
+    elif x >= 50:
+        return 'E'
+    else:
+        return 'F'
+
+df['Grade'] = df['Percentage'].apply(grade)
+
+df['Result'] = np.where(df['Percentage'] >= 40, 'Pass', 'Fail')
+
+print(df['Result'].value_counts())
+plt.figure(figsize=(6,4))
+sns.countplot(data=df, x='Result')
+plt.title('Pass vs Fail Analysis')
+plt.show()
+plt.figure(figsize=(8,5))
+sns.countplot(data=df, x='Grade',
+              order=['A','B','C','D','E','F'])
+plt.title('Grade Distribution')
+plt.show()
+plt.figure(figsize=(8,5))
+sns.scatterplot(
+    data=df,
+    x='Attendance',
+    y='Percentage'
+)
+plt.title('Attendance vs Percentage')
+plt.show()
+scores = [
+    df['Assignment_Score'].mean(),
+    df['Midterm_Score'].mean(),
+    df['Final_Score'].mean()
+]
+
+labels = [
+    'Assignment',
+    'Midterm',
+    'Final'
+]
+
+plt.figure(figsize=(7,5))
+plt.bar(labels, scores)
+plt.title('Average Score Comparison')
+plt.ylabel('Average Marks')
+plt.show()
+plt.figure(figsize=(8,6))
+
+sns.heatmap(
+    df.select_dtypes(include=np.number).corr(),
+    annot=True,
+    cmap='coolwarm'
+)
+
+plt.title('Correlation Matrix')
+plt.show()
+top_students = df.sort_values(
+    by='Percentage',
+    ascending=False
+).head(10)
+
+print("Top 10 Students")
+display(top_students)
+le = LabelEncoder()
+
+for col in df.select_dtypes(include='object').columns:
+    df[col] = le.fit_transform(df[col])
+    X = df[
+    [
+        'Attendance',
+        'Assignment_Score',
+        'Midterm_Score',
+        'Final_Score'
+    ]
+]
+
+y = df['Result']
+
+model = RandomForestClassifier(
+    n_estimators=100,
+    random_state=42
+)
+
+model.fit(X_train, y_train)
+
+pred = model.predict(X_test)
+print("Accuracy:",
+      accuracy_score(y_test, pred))
+
+print("\nClassification Report")
+print(classification_report
+(y_test, pred))
+cm = confusion_matrix(y_test, pred)
+
+plt.figure(figsize=(6,4))
+sns.heatmap(
+    cm,
+    annot=True,
+    fmt='d'
+)
+
+plt.title("Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.show()
+df.to_csv(
+    "Student_Performance_Analytics_Report.csv",
+    index=False
+)
+
+files.download(
+    "Student_Performance_Analytics_Report.csv"
+)
